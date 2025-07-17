@@ -33,29 +33,17 @@ struct ContentView: View {
     ]
 
     init() {
-        let today = Self.currentDayString()
-        let lastSavedDay = UserDefaults.standard.string(forKey: "lastSavedDay")
-        if lastSavedDay == today,
-           let saved = UserDefaults.standard.array(forKey: "counts") as? [Int], saved.count == 20 {
+        if let saved = UserDefaults.standard.array(forKey: "counts") as? [Int], saved.count == 20 {
             _counts = State(initialValue: saved)
             _countStrings = State(initialValue: saved.map { String($0) })
         } else {
-            UserDefaults.standard.set(today, forKey: "lastSavedDay")
-            UserDefaults.standard.set(Array(repeating: 0, count: 20), forKey: "counts")
             _counts = State(initialValue: Array(repeating: 0, count: 20))
             _countStrings = State(initialValue: Array(repeating: "0", count: 20))
         }
     }
 
-    static func currentDayString() -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: Date())
-    }
-
     func saveCounts() {
         UserDefaults.standard.set(counts, forKey: "counts")
-        UserDefaults.standard.set(Self.currentDayString(), forKey: "lastSavedDay")
     }
 
     func resetCounts() {
@@ -64,20 +52,27 @@ struct ContentView: View {
         saveCounts()
     }
 
+    var pagesReadBonus: Int {
+        let pages = counts.first ?? 0
+        return (pages / 50) * 25
+    }
+
     var totalPoints: Int {
-        zip(counts, pointsPerUnit).map { $0 * $1 }.reduce(0, +)
+        zip(counts, pointsPerUnit).map { $0 * $1 }.reduce(0, +) + pagesReadBonus
     }
 
     var body: some View {
         GeometryReader { geometry in
             let horizontalPadding = geometry.size.width * 0.05
             let verticalSpacing = geometry.size.height * 0.02
-
+            
             VStack(spacing: verticalSpacing) {
                 Text("Digital Points Slip")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
+                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                    .foregroundColor(.accentColor)
                     .padding(.bottom, verticalSpacing)
+                    .shadow(color: .accentColor.opacity(0.2), radius: 2, x: 0, y: 2)
+                
                 ScrollView {
                     VStack(spacing: verticalSpacing) {
                         ForEach(0..<labels.count, id: \.self) { index in
@@ -103,6 +98,9 @@ struct ContentView: View {
                                     .frame(width: 60, alignment: .trailing)
                                     .keyboardType(.numberPad)
                                     .multilineTextAlignment(.trailing)
+                                    .padding(6)
+                                    .background(.ultraThinMaterial)
+                                    .cornerRadius(8)
                                     Stepper(
                                         value: Binding(
                                             get: { counts[index] },
@@ -125,6 +123,14 @@ struct ContentView: View {
                                         .fixedSize(horizontal: false, vertical: true)
                                 }
                             }
+                            .padding()
+                            .background(.ultraThinMaterial)
+                            .cornerRadius(20)
+                            .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                            )
                         }
                     }
                 }
@@ -132,15 +138,21 @@ struct ContentView: View {
                 Divider()
                 HStack {
                     Button(action: resetCounts) {
-                        Text("Reset")
+                        Label("Reset", systemImage: "arrow.counterclockwise")
                             .foregroundColor(.red)
                             .padding(.horizontal)
                     }
+                    .buttonStyle(.bordered)
                     Spacer()
-                    Text("Points:")
-                        .fontWeight(.bold)
-                    Text("\(totalPoints)")
-                        .fontWeight(.bold)
+                    VStack(alignment: .trailing) {
+                        Text("Points:")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                        Text("\(totalPoints)")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.accentColor)
+                    }
                 }
                 .padding(.top, verticalSpacing)
                 Text("Made with ❤️ and Open Source by Ari Cummings")
@@ -150,6 +162,17 @@ struct ContentView: View {
             }
             .padding(.horizontal, horizontalPadding)
             .padding(.vertical, verticalSpacing)
+            .background(
+                LinearGradient(
+                    gradient: Gradient(colors: [Color.blue.opacity(0.15), Color(.systemBackground)]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+            )
+            .onTapGesture {
+                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                        }
         }
     }
 }
